@@ -1,6 +1,6 @@
 {
   "name": "@yo1dog/sql",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Easy SQL query building.",
   "main": "lib/SQL.js",
   "directories": {
