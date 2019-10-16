@@ -1,8 +1,9 @@
 {
   "name": "@yo1dog/sql",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Easy SQL query building.",
-  "main": "lib/SQL.js",
+  "main": "lib/sql.js",
+  "types": "lib/sql.d.ts",
   "directories": {
     "lib": "lib"
   },
