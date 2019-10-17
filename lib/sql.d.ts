@@ -1,107 +1,181 @@
-declare class SQLQuery {
-  /**
-   * Creates a SQL query object. Used internally by SQL.
-   */
-  public constructor(origStrings: string[], origValues: any[]);
+declare namespace SQL {
+  export class SQLQuery {
+    public readonly strings: string[];
+    public readonly values: any[];
+    
+    /**
+     * Creates a SQL query object. Used internally by SQL.
+     */
+    public constructor(origStrings: string[], origValues: any[]);
+    
+    /**
+     * Appends the given SQL query or string to the end of this SQL query.
+     * 
+     * Example:
+     * ```javascript
+     * const sql = SQL`SELECT `;
+     * sql.append('name FROM person ').append(SQL`WHERE id = ${id}`);
+     * 
+     * // Equivalent to:
+     * SQL`SELECT name FROM person WHERE id = ${id}`
+     * ```
+     */
+    public append(sql: SQLQuery | string): SQLQuery;
+    
+    /**
+     * Appends the given value to the end of this SQL query.
+     * 
+     * Example:
+     * ```javascript
+     * const sql = SQL`SELECT name FROM person WHERE id = `;
+     * sql.appendValue(id);
+     *
+     * // Equivalent to:
+     * SQL`SELECT name FROM person WHERE id = ${id}`
+     * ```
+     */
+    public appendValue(val: any): SQLQuery;
+    
+    /**
+     * Makes a half-hearted attempt to format this SQL query into
+     * a human-friendly string.
+     */
+    public toPrettyString(): string;
+    
+    /**
+     * Splits this SQL query into multiple SQL queries.
+     * 
+     * Example:
+     * ```javascript
+     * const sql = SQL`WHERE first_name = ${firstName} AND last_name = ${lastName} AND birthday IS NOT NULL`;
+     * sql.split('AND')
+     * 
+     * // Equivalent to:
+     * [
+     *   SQL`WHERE first_name = ${firstName} `,
+     *   SQL` last_name = ${lastName} `,
+     *   SQL` birthday IS NOT NULL`
+     * ]
+     * ```
+     */
+    public split(seperator: string | RegExp): SQLQuery[];
+    
+    /**
+     * Returns if this SQL query is completly empty including whitespace
+     * and contains no variables.
+     * 
+     * See `isWhitespaceOnly()`
+     * 
+     * Example:
+     * ```javascript
+     * SQL``      .isEmpty(); // true
+     * SQL`    `  .isEmpty(); // false
+     * SQL`SELECT`.isEmpty(); // false
+     * SQL`${''}` .isEmpty(); // false
+     * ```
+     */
+    public isEmpty(): boolean;
+    
+    /**
+     * Returns if this SQL query contains only whitespace and no variables.
+     * 
+     * Example:
+     * ```javascript
+     * SQL``      .isEmpty(); // true
+     * SQL`    `  .isEmpty(); // true
+     * SQL`SELECT`.isEmpty(); // false
+     * SQL`${''}` .isEmpty(); // false
+     * ```
+     */
+    public isWhitespaceOnly(): boolean;
+    
+    /**
+     * Returns the text portion of the SQL query with variable
+     * substitutions.
+     * 
+     * Example:
+     * ```javascript
+     * const sql = SQL`SELECT name FROM person WHERE first_name = ${firstName} AND last_name = ${lastName} AND birthday IS NOT NULL`;
+     * sql.text
+     * 
+     * // Equivalent to:
+     * 'SELECT name FROM person WHERE first_name = $1 AND last_name = $2 AND birthday IS NOT NULL'
+     * ```
+     */
+    public get text(): string;
+  }
   
   /**
-   * Appends the given SQL query or string to the end of this SQL query.
+   * An alternate way of building a query. Start with a string then alternate
+   * strings and values.
    * 
    * Example:
    * ```javascript
-   * const sql = SQL`SELECT `;
-   * sql.append('name FROM person ').append(SQL`WHERE id = ${id}`);
+   * SQL('SELECT name FROM person WHERE first_name = ', firstName, ' AND last_name = ', lastName);
    * 
    * // Equivalent to:
-   * SQL`SELECT name FROM person WHERE id = ${id}`
-   * ```
-   */
-  public append(sql: SQLQuery | string): SQLQuery;
-  
-  /**
-   * Appends the given value to the end of this SQL query.
-   * 
-   * Example:
-   * ```javascript
-   * const sql = SQL`SELECT name FROM person WHERE id = `;
-   * sql.appendValue(id);
-   *
-   * // Equivalent to:
-   * SQL`SELECT name FROM person WHERE id = ${id}`
-   * ```
-   */
-  public appendValue(val: any): SQLQuery;
-  
-  /**
-   * Makes a half-hearted attempt to format this SQL query into
-   * a human-friendly string.
-   */
-  public toPrettyString(): string;
-  
-  /**
-   * Splits this SQL query into multiple SQL queries.
-   * 
-   * Example:
-   * ```javascript
-   * const sql = SQL`WHERE first_name = ${firstName} AND last_name = ${lastName} AND birthday IS NOT NULL`;
-   * sql.split('AND')
+   * SQL`SELECT name FROM person WHERE first_name = ${firstName} AND last_name = ${lastName}`;
    * 
    * // Equivalent to:
-   * [
-   *   SQL`WHERE first_name = ${firstName} `,
-   *   SQL` last_name = ${lastName} `,
-   *   SQL` birthday IS NOT NULL`
-   * ]
+   * {
+   *   text: 'SELECT name FROM person WHERE first_name = $1 AND last_name = $2',
+   *   values: [firstName, lastName]
+   * }
    * ```
    */
-  public split(seperator: string | RegExp): SQLQuery[];
+  export function build(...strsAndVals: any[]): SQLQuery;
   
   /**
-   * Returns if this SQL query is completly empty including whitespace
-   * and contains no variables.
-   * 
-   * See `isWhitespaceOnly()`
+   * Joins multiple SQL queries and/or strings into a single SQL query with an optional
+   * seperator. Similar to `Array.pototype.join`.
    * 
    * Example:
    * ```javascript
-   * SQL``      .isEmpty(); // true
-   * SQL`    `  .isEmpty(); // false
-   * SQL`SELECT`.isEmpty(); // false
-   * SQL`${''}` .isEmpty(); // false
-   * ```
-   */
-  public isEmpty(): boolean;
-  
-  /**
-   * Returns if this SQL query contains only whitespace and no variables.
-   * 
-   * Example:
-   * ```javascript
-   * SQL``      .isEmpty(); // true
-   * SQL`    `  .isEmpty(); // true
-   * SQL`SELECT`.isEmpty(); // false
-   * SQL`${''}` .isEmpty(); // false
-   * ```
-   */
-  public isWhitespaceOnly(): boolean;
-  
-  /**
-   * Returns the text portion of the SQL query with variable
-   * substitutions.
-   * 
-   * Example:
-   * ```javascript
-   * const sql = SQL`SELECT name FROM person WHERE first_name = ${firstName} AND last_name = ${lastName} AND birthday IS NOT NULL`;
-   * sql.text
+   * SQL.join([
+   *   SQL`first_name = ${firstName}`,
+   *   SQL`last_name = ${lastName}`,
+   *   'birthday IS NULL'
+   * ], ' AND ')
    * 
    * // Equivalent to:
-   * 'SELECT name FROM person WHERE first_name = $1 AND last_name = $2 AND birthday IS NOT NULL'
+   * SQL`first_name = ${firstName} AND last_name = ${lastName} AND birthday IS NULL`
    * ```
    */
-  public get text(): string;
+  export function join(sqls: (SQLQuery|string)[], seperator?: SQLQuery|string): SQLQuery;
+  
+  /**
+   * Joins values into a single SQL query with an optional seperator. Similar to
+   * `Array.pototype.join`
+   * 
+   * Example:
+   * ```javascript
+   * SQL`
+   *   INSERT (${SQL.joinValues([a, b c], '), (')})
+   *   INTO table
+   *   WHERE id IN (${SQL.joinValues([31, 45, 22])})
+   * `
+   * 
+   * // Equivalent to:
+   * SQL`
+   *   INSERT (${a}), (${b}), (${c})
+   *   INTO table
+   *   WHERE id IN (${31}, ${45}, ${22})
+   * `
+   * ```
+   */
+  export function joinValues(vals: any[], seperator?: SQLQuery|string): SQLQuery;
+  
+  /**
+   * Returns if the given value is a SQL query object.
+   * 
+   * Example:
+   * ```javascript
+   * SQL.isSQL(SQL`SELECT 1`); // true
+   * SQL.isSQL('SELECT 1'); // false
+   * ```
+   */
+  export function isSQL(val: any): val is SQLQuery;
 }
-
-type TSQL = (strings: string[], ...values: any[]) => SQLQuery;
 
 /**
  * SQL tag. Example:
@@ -189,79 +263,6 @@ type TSQL = (strings: string[], ...values: any[]) => SQLQuery;
  * }
  * ```
  */
-interface ISQL extends TSQL {
-  readonly SQLQuery: SQLQuery;
-  
-  /**
-   * An alternate way of building a query. Start with a string then alternate
-   * strings and values.
-   * 
-   * Example:
-   * ```javascript
-   * SQL('SELECT name FROM person WHERE first_name = ', firstName, ' AND last_name = ', lastName);
-   * 
-   * // Equivalent to:
-   * SQL`SELECT name FROM person WHERE first_name = ${firstName} AND last_name = ${lastName}`;
-   * 
-   * // Equivalent to:
-   * {
-   *   text: 'SELECT name FROM person WHERE first_name = $1 AND last_name = $2',
-   *   values: [firstName, lastName]
-   * }
-   * ```
-   */
-  build(...strsAndVals: any[]): SQLQuery;
-  
-  /**
-   * Joins multiple SQL queries and/or strings into a single SQL query with an optional
-   * seperator. Similar to `Array.pototype.join`.
-   * 
-   * Example:
-   * ```javascript
-   * SQL.join([
-   *   SQL`first_name = ${firstName}`,
-   *   SQL`last_name = ${lastName}`,
-   *   'birthday IS NULL'
-   * ], ' AND ')
-   * 
-   * // Equivalent to:
-   * SQL`first_name = ${firstName} AND last_name = ${lastName} AND birthday IS NULL`
-   * ```
-   */
-  join(sqls: (SQLQuery|string)[], seperator?: SQLQuery|string): SQLQuery;
-  
-  /**
-   * Joins values into a single SQL query with an optional seperator. Similar to
-   * `Array.pototype.join`
-   * 
-   * Example:
-   * ```javascript
-   * SQL`
-   *   INSERT (${SQL.joinValues([a, b c], '), (')})
-   *   INTO table
-   *   WHERE id IN (${SQL.joinValues([31, 45, 22])})
-   * `
-   * 
-   * // Equivalent to:
-   * SQL`
-   *   INSERT (${a}), (${b}), (${c})
-   *   INTO table
-   *   WHERE id IN (${31}, ${45}, ${22})
-   * `
-   * ```
-   */
-  joinValues(vals: any[], seperator?: SQLQuery|string): SQLQuery;
-  
-  /**
-   * Returns if the given value is a SQL query object.
-   * 
-   * Example:
-   * ```javascript
-   * SQL.isSQL(SQL`SELECT 1`); // true
-   * SQL.isSQL('SELECT 1'); // false
-   * ```
-   */
-  isSQL(val: any): val is SQLQuery;
-}
+declare function SQL(strings: TemplateStringsArray|string, ...values: any[]): SQL.SQLQuery;
 
-export default ISQL;
+export = SQL;

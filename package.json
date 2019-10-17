@@ -1,6 +1,6 @@
 {
   "name": "@yo1dog/sql",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Easy SQL query building.",
   "main": "lib/sql.js",
   "types": "lib/sql.d.ts",
