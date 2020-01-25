@@ -6,7 +6,7 @@ declare namespace SQL {
     /**
      * Creates a SQL query object. Used internally by SQL.
      */
-    public constructor(origStrings: string[], origValues: any[]);
+    public constructor(origStrings?: string[] | string, origValues?: any[]);
     
     /**
      * Appends the given SQL query or string to the end of this SQL query.
@@ -20,7 +20,7 @@ declare namespace SQL {
      * SQL`SELECT name FROM person WHERE id = ${id}`
      * ```
      */
-    public append(sql: SQLQuery | string): SQLQuery;
+    public append(sql: SQLQuery | string): this;
     
     /**
      * Appends the given value to the end of this SQL query.
@@ -34,7 +34,7 @@ declare namespace SQL {
      * SQL`SELECT name FROM person WHERE id = ${id}`
      * ```
      */
-    public appendValue(val: any): SQLQuery;
+    public appendValue(val: any): this;
     
     /**
      * Makes a half-hearted attempt to format this SQL query into
