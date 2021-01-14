@@ -1,14 +1,21 @@
 {
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
   "extends": [
-    "eslint:recommended"
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/recommended-requiring-type-checking"
   ],
   "parserOptions": {
-    "ecmaVersion": 2017,
-    "sourceType": "script",
-    "project": "jsconfig.json"
+    "ecmaVersion": 2020,
+    "sourceType": "module",
+    "project": "tsconfig.json"
   },
+  "ignorePatterns": [
+    "/dist"
+  ],
   "env": {
-    "es6": true,
+    "es2020": true,
     "node": true,
     "browser": false
   },
@@ -72,6 +79,7 @@
     "no-unused-vars": ["error", {"args": "none"}],
     
     // Stylistic Issues
+    "camelcase": ["error", {"properties": "never"}],
     "jsx-quotes": ["error", "prefer-double"],
     "linebreak-style": ["error", "unix"],
     "new-cap": ["error", {"capIsNewExceptions": ["SQL", "express.Router"]}],
@@ -90,9 +98,90 @@
     "no-confusing-arrow": "error",
     "no-var": "error",
     "prefer-arrow-callback": ["error", {"allowNamedFunctions": true}],
-    "prefer-const": "error"
-
+    "prefer-const": "error",
+    
+    // --- TypeScript ---
+    "@typescript-eslint/indent": "off",
+    "@typescript-eslint/no-extraneous-class": "error",
+    "@typescript-eslint/no-for-in-array": "error",
+    "@typescript-eslint/no-misused-promises": "error",
+    "@typescript-eslint/no-this-alias": "error",
+    "no-use-before-define": "off",
+    "@typescript-eslint/no-use-before-define": ["error", {"functions": false, "classes": false, "variables": true, "typedefs": false}],
+    "@typescript-eslint/prefer-function-type": "error",
+    "@typescript-eslint/prefer-includes": "error",
+    "semi": "off",
+    "@typescript-eslint/semi": "error",
+    "@typescript-eslint/triple-slash-reference": "error",
+    "@typescript-eslint/unified-signatures": "error",
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": ["error", {"args": "none"}],
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@typescript-eslint/no-empty-interface": "off",
+    "@typescript-eslint/no-inferrable-types": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/ban-ts-ignore": "off",
+    "@typescript-eslint/require-await": "off",
+    "@typescript-eslint/no-var-requires": "off",
+    "@typescript-eslint/no-require-imports": "off",
+    "no-empty-function": "off",
+    "@typescript-eslint/no-empty-function": "error",
+    "camelcase": "off",
+    "@typescript-eslint/camelcase": "off",
+    "@typescript-eslint/no-unsafe-assignment": "off",
+    "@typescript-eslint/no-unsafe-call": "off",
+    "@typescript-eslint/no-unsafe-member-access": "off",
+    "@typescript-eslint/no-unsafe-return": "off",
+    "@typescript-eslint/prefer-string-starts-ends-with": "error",
+    "@typescript-eslint/member-delimiter-style": "error",
+    "@typescript-eslint/naming-convention": [
+      "error",
+      {
+        "selector": "variableLike",
+        "format": ["camelCase"],
+        "leadingUnderscore": "allow"
+      },
+      {
+        "selector": "variable",
+        "format": ["camelCase", "UPPER_CASE"],
+        "leadingUnderscore": "allow"
+      },
+      {
+        "selector": "property",
+        "format": null,
+        "leadingUnderscore": "allow"
+      },
+      {
+        "selector": "memberLike",
+        "format": ["camelCase"],
+        "leadingUnderscore": "allow"
+      },
+      {
+        "selector": "typeLike",
+        "format": ["PascalCase"]
+      },
+      {
+        "selector": "interface",
+        "prefix": ["I"],
+        "format": ["PascalCase"]
+      },
+      {
+        "selector": "enum",
+        "prefix": ["E"],
+        "format": ["PascalCase"]
+      },
+      {
+        "selector": "enumMember",
+        "format": ["UPPER_CASE"]
+      }
+    ],
+    
+    // --- TypeScript Project ---
+    "@typescript-eslint/no-require-imports": "error",
+    
     // --- Project Specific ---
-
+    "@typescript-eslint/ban-types": "off",
+    "@typescript-eslint/no-explicit-any": "off"
   }
 }

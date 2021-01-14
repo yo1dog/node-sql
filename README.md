@@ -2,10 +2,14 @@
 
 Easy SQL query building.
 
+```
+npm install @yo1dog/sql
+```
+
 ## Quick Start
 
 ```javascript
-const SQL = require('@yo1dog/sql');
+const {SQL} = require('@yo1dog/sql');
 const firstName = 'Bob';
 const lastName = 'Smith';
 const myId = 1234;

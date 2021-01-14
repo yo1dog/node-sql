@@ -2,14 +2,18 @@
   "name": "@yo1dog/sql",
   "version": "1.0.3",
   "description": "Easy SQL query building.",
-  "main": "lib/sql.js",
-  "types": "lib/sql.d.ts",
-  "directories": {
-    "lib": "lib"
+  "type": "commonjs",
+  "main": "dist/sql.js",
+  "types": "dist/sql.d.ts",
+  "engines": {
+    "node": ">=12.0.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "npx tsc -p jsconfig.json && npx eslint ."
+    "lint": "npx tsc -p . --noEmit && npx eslint . --ext .js,.jsx,.ts,.tsx",
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "prepack": "npm run clean && npm run build"
   },
   "repository": {
     "type": "git",
@@ -20,5 +24,12 @@
   "bugs": {
     "url": "https://github.com/yo1dog/node-sql/issues"
   },
-  "homepage": "https://github.com/yo1dog/node-sql#readme"
+  "homepage": "https://github.com/yo1dog/node-sql#readme",
+  "devDependencies": {
+    "@types/node": "^14.14.20",
+    "@typescript-eslint/eslint-plugin": "^4.13.0",
+    "@typescript-eslint/parser": "^4.13.0",
+    "eslint": "^7.17.0",
+    "typescript": "^4.1.3"
+  }
 }
