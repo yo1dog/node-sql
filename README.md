@@ -35,6 +35,7 @@ const sqlB = SQL`first_name = ${firstName}`;
 const sqlC = SQL`last_name = ${lastName}`;
 SQL`${sqlA} FROM person WHERE ${sqlB} AND ${sqlC}`;
 
+// Equivalent to:
 {
   text: 'SELECT name FROM person WHERE first_name = $1 AND last_name = $2',
   values: ['Bob', 'Smith']
@@ -48,6 +49,7 @@ const tableName = 'person';
 SQL`SELECT name FROM ${tableName     } WHERE id = ${myId}`
 SQL`SELECT name FROM ${SQL(tableName)} WHERE id = ${myId}`
 
+// Equivalent to:
 {
   text: 'SELECT name FROM $1 WHERE id = $2', // ERROR! Invalid SQL
   values: ['person', 1234]
@@ -76,6 +78,7 @@ SQL`
   ${orderSQL}
 `;
 
+// Equivalent to:
 {
   text: `
     SELECT name
@@ -114,7 +117,7 @@ Example:
 SQL('SELECT name FROM person WHERE first_name = ', firstName, ' AND last_name = ', lastName);
 // Equivalent to:
 SQL`SELECT name FROM person WHERE first_name = ${firstName} AND last_name = ${lastName}`;
-
+// Equivalent to:
 {
   text: 'SELECT name FROM person WHERE first_name = $1 AND last_name = $2',
   values: ['Bob', 'Smith']
@@ -143,6 +146,7 @@ SQL.join([
   'birthday IS NULL'
 ], ' AND ')
 
+// Equivalent to:
 {
   text: 'first_name = $1 AND last_name = $2 AND birthday IS NULL',
   values: ['Bob', 'Smith']
@@ -166,15 +170,16 @@ Returns a `SQLQuery` object.
 Example:
 ```javascript
 SQL`
-  INSERT (${SQL.joinValues(['a', 'b' 'c'], '), (')})
-  INTO table
+  INSERT INTO table VALUES
+    (${SQL.joinValues(['a', 'b' 'c'], '), (')})
   WHERE id IN (${SQL.joinValues([31, 45, 22])})
 `
 
+// Equivalent to:
 {
   text: `
-    INSERT ($1), ($2), ($3)
-    INTO table
+    INSERT INTO table VALUES
+      ($1), ($2), ($3)
     WHERE id IN ($4, $5, $6)
   `,
   values: ['a', 'b', 'c', 31, 45, 22]
@@ -215,7 +220,7 @@ Example:
 const sql = SQL`SELECT `;
 sql.append('name FROM person ').append(SQL`WHERE id = ${id}`);
 
-sql
+// Equivalent to:
 {
   text: 'SELECT name FROM person WHERE id = $1',
   values: [1234]
@@ -239,7 +244,7 @@ Example:
 const sql = SQL`SELECT name FROM person WHERE id = `;
 sql.appendValue(id);
 
-sql
+// Equivalent to:
 {
   text: 'SELECT name FROM person WHERE id = $1',
   values: [1234]
@@ -268,6 +273,7 @@ Example:
 const sql = SQL`WHERE first_name = ${firstName} AND last_name = ${lastName} AND birthday IS NOT NULL`;
 sql.split('AND')
 
+// Returns:
 [
   {
     text: 'WHERE first_name = $1 ',

@@ -26,6 +26,7 @@
  * const sqlC = SQL`last_name = ${lastName}`;
  * SQL`${sqlA} FROM person WHERE ${sqlB} AND ${sqlC}`;
  * 
+ * // Equivalent to:
  * {
  *   text: 'SELECT name FROM person WHERE first_name = $1 AND last_name = $2',
  *   values: ['Bob', 'Smith']
@@ -383,15 +384,15 @@ export namespace SQL {
    * Example:
    * ```javascript
    * SQL`
-   *   INSERT (${SQL.joinValues([a, b c], '), (')})
-   *   INTO table
+   *   INSERT INTO table VALUES
+   *     (${SQL.joinValues([a, b c], '), (')})
    *   WHERE id IN (${SQL.joinValues([31, 45, 22])})
    * `
    * 
    * // Equivalent to:
    * SQL`
-   *   INSERT (${a}), (${b}), (${c})
-   *   INTO table
+   *   INSERT INTO table VALUES
+   *     (${a}), (${b}), (${c})
    *   WHERE id IN (${31}, ${45}, ${22})
    * `
    * ```
