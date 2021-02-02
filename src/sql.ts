@@ -456,3 +456,4 @@ function escapeRegExp(string: string) {
 
 
 export default SQL;
+export const sql = SQL;

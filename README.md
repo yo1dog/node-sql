@@ -10,6 +10,9 @@ npm install @yo1dog/sql
 
 ```javascript
 const {SQL} = require('@yo1dog/sql');
+// OR
+const {sql} = require('@yo1dog/sql');
+
 const firstName = 'Bob';
 const lastName = 'Smith';
 const myId = 1234;
