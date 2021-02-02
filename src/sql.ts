@@ -422,6 +422,31 @@ export namespace SQL {
   export function isSQL(val: any): val is SQLQuery {
     return val instanceof SQLQuery;
   }
+  
+  /**
+   * Returns SQL query for a quoted indentifier. Multiple indentifiers will be delimited. Handles
+   * escaping of double quotes.
+   * 
+   * Example:
+   * ```javascript
+   * const tableName = 'Person';
+   * const columnName = 'Birthday';
+   * SQL`SELECT ${SQL.identifier(tableName, columnName) FROM ${SQL.identifier(tableName)}`
+   * 
+   * // Equivalent to:
+   * {
+   *   text: `SELECT "Person"."Birthday" FROM "Person"`,
+   *   values: []
+   * }
+   * ```
+   */
+  export function identifier(...identifiers: string[]) {
+    return SQL(
+      identifiers
+      .map(part => `"${part.replace(/"/g, '""')}"`)
+      .join('.')
+    );
+  }
 }
 
 // https://stackoverflow.com/a/6969486

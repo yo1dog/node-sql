@@ -44,7 +44,7 @@ SQL`${sqlA} FROM person WHERE ${sqlB} AND ${sqlC}`;
 
 ```javascript
 // To prevent a variable string from being replaced, wrap the string in a SQL
-// query. Example: 
+// query (Also see `SQL.identifier()`). Example: 
 const tableName = 'person';
 SQL`SELECT name FROM ${tableName     } WHERE id = ${myId}`
 SQL`SELECT name FROM ${SQL(tableName)} WHERE id = ${myId}`
@@ -200,7 +200,29 @@ Example:
 ```javascript
 SQL.isSQL(SQL`SELECT 1`); // true
 SQL.isSQL('SELECT 1'); // false
-`
+```
+
+-----
+
+## `SQL.identifier(...identifiers)`
+
+ param        | type   | description
+--------------|--------|-------------
+`identifiers` | string | Identifer(s) to create SQL for.
+
+Returns SQL query for a quoted indentifier. Multiple indentifiers will be delimited. Handles escaping of double quotes.
+
+Example:
+```javascript
+const tableName = 'Person';
+const columnName = 'Birthday';
+SQL`SELECT ${SQL.identifier(tableName, columnName) FROM ${SQL.identifier(tableName)}`
+
+// Equivalent to:
+{
+  text: `SELECT "Person"."Birthday" FROM "Person"`,
+  values: []
+}
 ```
 
 -----
