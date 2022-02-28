@@ -1,25 +1,44 @@
-/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable @typescript-eslint/unified-signatures,@typescript-eslint/naming-convention */
+
 /**
- * SQL tag. Example:
- * ```javascript
- * SQL`SELECT name FROM person WHERE first_name = ${firstName} AND last_name = ${lastName}`
- * ```
+ * Coerces the given value to a `SQLQuery`. If a `SQLQuery` is given it is returned as-is (it is not
+ * cloned: see `sqlQuery.clone`). If a string is given a new `SQLQuery` is created using the string
+ * as the query's text (without variable substitution).
  * 
- * Expressions (${}) in SQL tagged template strings are replaced with SQL variable
- * substitutions. The above returns a SQL query object which has the form:
+ * Example:
  * ```javascript
- * {
- *   text: 'SELECT name FROM person WHERE first_name = $1 AND last_name = $2',
- *   values: ['Bob', 'Smith']
- * }
- * ```
+ * const tableName = 'person';
+ * SQL`SELECT * FROM ${SQL(tableName)} WHERE id = ${id}`
  * 
- * This SQL query can be passed directly to many SQL clients:
+ * // Equivalent to:
+ * SQL`SELECT * FROM person WHERE id = ${id}`
+ * ```
+ */
+export function SQL(sqlOrText: SQL.SQLQuery | string): SQL.SQLQuery;
+
+/**
+ * Coerces the given value to a `SQLQuery`. If a `SQLQuery` is given it is returned as-is (it is not
+ * cloned: see `sqlQuery.clone`). If a string is given a new `SQLQuery` is created using the string
+ * as the query's text (without variable substitution).
+ * 
+ * Example:
  * ```javascript
- * pg.getPool().query(SQL`SELECT name FROM person WHERE id = ${myId}`);
- * ```
+ * const tableName = 'person';
+ * SQL`SELECT * FROM ${SQL(tableName)} WHERE id = ${id}`
  * 
- * Nested SQL queries are combined as expected:
+ * // Equivalent to:
+ * SQL`SELECT * FROM person WHERE id = ${id}`
+ * ```
+ */
+export function SQL(): SQL.SQLQuery;
+
+/**
+ * Used to power tagged template literals.
+ * 
+ * Use `SQL` as a template tag to create a `SQLQuery`. Expressions (`${}`) in `SQL` tagged templates
+ * are replaced with SQL variable substitutions. Nesting of `SQLQuery` is supported.
+ * 
+ * Example:
  * ```javascript
  * const sqlA = SQL`SELECT name`;
  * const sqlB = SQL`first_name = ${firstName}`;
@@ -32,69 +51,47 @@
  *   values: ['Bob', 'Smith']
  * }
  * ```
- * 
- * To prevent a variable SQL string from being substituted, wrap the string in a SQL
- * query. Example:
- * ```javascript
- * const tableName = 'person';
- * SQL`SELECT name FROM ${tableName     } WHERE id = ${myId}`
- * SQL`SELECT name FROM ${SQL(tableName)} WHERE id = ${myId}`
- * 
- * // Equivalent to:
- * {text: 'SELECT name FROM $1 WHERE id = $2', values: [tableName, myId]} // ERROR! Invalid SQL
- * {text: 'SELECT name FROM person WHERE id = $1', values: [myId]} // correct
- * ```
- * 
- * You can also use an alternate build style. See `SQL.build`. Example:
- * ```javascript
- * SQL('SELECT name FROM person WHERE first_name = ', firstName, ' AND last_name = ', lastName)
- * 
- * // Equivalent to:
- * SQL`SELECT name FROM person WHERE first_name = ${firstName} AND last_name = ${lastName}`;
- * ```
- * 
- * Easily combine SQL queries and values in multiple ways:
- * ```javascript
- * const conditionSQLs = [
- *   SQL`first_name = ${firstName}`,
- *   SQL`last_name = ${lastName}`,
- *   'birthday IS NOT NULL'
- * ];
- * const orderSQL = SQL`ORDER BY birthday ASC`;
- * const myIds = [31, 45, 22]
- * 
- * SQL`
- *   SELECT name
- *   FROM ${SQL(tableName)}
- *   WHERE
- *     ${SQL.join(conditionSQLs, ' AND ')}
- *     OR id IN (${SQL.joinValues(myIds)})
- *   ${orderSQL}
- * `;
- * 
- * // Equivalent to:
- * {
- *   text: `
- *     SELECT name
- *     FROM person
- *     WHERE
- *       first_name = $1 AND last_name = $2 AND birthday IS NOT NULL
- *       OR id IN ($3, $4, $5)
- *     ORDER BY birthday ASC
- *   `,
- *   values: [firstName, lastName, 31, 45, 22]
- * }
- * ```
  */
-export function SQL(...strsAndVals: any[]): SQL.SQLQuery;
-export function SQL(strings: string[] | TemplateStringsArray, ...values: any[]): SQL.SQLQuery;
-export function SQL(strings: string[] | TemplateStringsArray | string, ...values: any[]): SQL.SQLQuery {
-  if (Array.isArray(strings)) {
-    return new SQL.SQLQuery(strings, values);
+export function SQL(strings: TemplateStringsArray, ...values: any[]): SQL.SQLQuery;
+
+export function SQL(arg1?: TemplateStringsArray | SQL.SQLQuery | string, ...values: any[]): SQL.SQLQuery {
+  if (Array.isArray(arg1)) {
+    return fromTaggedTemplate(arg1 as TemplateStringsArray, values);
+  }
+  if (arg1 instanceof SQL.SQLQuery) {
+    return arg1;
+  }
+  if (arguments.length === 0) {
+    return new SQL.SQLQuery();
+  }
+  return new SQL.SQLQuery([arg1 as string], []);
+}
+
+function fromTaggedTemplate(strings: TemplateStringsArray, values: any[]): SQL.SQLQuery {
+  const sqlQuery = new SQL.SQLQuery([], []);
+  
+  // add the first string
+  sqlQuery.strings.push(strings[0]);
+  
+  // for each value...
+  for (let i = 0; i < values.length; ++i) {
+    const value = values[i];
+    const followingStr = strings[i + 1];
+    
+    // check if the value is a query
+    if (value instanceof SQL.SQLQuery) {
+      // append the query and the following string
+      sqlQuery.append(value);
+      sqlQuery.strings[sqlQuery.strings.length - 1] += followingStr;
+    }
+    else {
+      // add the value and the following string
+      sqlQuery.values.push(value);
+      sqlQuery.strings.push(followingStr);
+    }
   }
   
-  // eslint-disable-next-line prefer-rest-params
-  return SQL.build(...arguments);
+  return sqlQuery;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -104,103 +101,80 @@ export namespace SQL {
     public readonly values: any[];
     
     /**
-     * Creates a SQL query object. Used internally by SQL.
+     * Used internally. To create a `SQLQuery` use `SQL` as a template literal tag or use the `SQL`
+     * and `SQL.build` functions.
      */
-    constructor(origStrings?: string[] | readonly string[] | string, origValues?: any[]) {
-      if (!Array.isArray(origStrings)) {
-        if (origStrings === undefined) {
-          origStrings = [''];
-        }
-        else {
-          origStrings = [origStrings as string];
-        }
-      }
-      if (!origValues) {
-        origValues = [];
+    constructor();
+    constructor(strings: string[], values: any[]);
+    constructor(strings?: string[], values?: any[]) {
+      this.strings = strings || [''];
+      this.values = values || [];
+    }
+    
+    protected appendSQL(sql: SQLQuery): this {
+      // append the query's first string to the last string
+      this.strings[this.strings.length - 1] += sql.strings[0];
+      
+      // add the rest of the query's strings and values
+      for (let j = 0; j < sql.values.length; ++j) {
+        this.values.push(sql.values[j]);
+        this.strings.push(sql.strings[j + 1]);
       }
       
-      this.strings = [];
-      this.values = [];
-      
-      // add the first string
-      this.strings.push(origStrings[0]);
-      
-      // for each value...
-      for (let i = 0; i < origValues.length; ++i) {
-        const value = origValues[i];
-        const followingStr = origStrings[i + 1];
-        
-        // check if the value is a query
-        if (!(value instanceof SQLQuery)) {
-          // if not, just add the value and the following string
-          this.values.push(value);
-          this.strings.push(followingStr);
-          continue;
-        }
-        
-        const sqlQuery = value;
-        
-        // add the query's strings and values
-        this.append(sqlQuery);
-        
-        // append the following string to the last string
-        this.strings[this.strings.length - 1] += followingStr;
-      }
+      return this;
+    }
+    protected appendText(text: string): this {
+      this.strings[this.strings.length - 1] += text;
+      return this;
+    }
+    protected appendValue(val: any): this {
+      this.values.push(val);
+      this.strings.push('');
+      return this;
     }
     
     /**
-     * Appends the given SQL query or string to the end of this SQL query.
+     * If a `SQLQuery` is given, it is appended to the end of this `SQLQuery`. Otherwise, the value
+     * is appended to the end of this `SQLQuery` using variable substitution.
      * 
      * Example:
      * ```javascript
      * const sql = SQL`SELECT `;
-     * sql.append('name FROM person ').append(SQL`WHERE id = ${id}`);
+     * sql.append(SQL`name FROM person WHERE id = `).append(id);
      * 
      * // Equivalent to:
      * SQL`SELECT name FROM person WHERE id = ${id}`
      * ```
      */
-    append(sql: SQLQuery | string) {
-      if (!(sql instanceof SQLQuery)) {
-        this.strings[this.strings.length - 1] += sql;
-        return this;
+    append(sqlOrVal: any): this {
+      if (sqlOrVal instanceof SQLQuery) {
+        return this.appendSQL(sqlOrVal);
       }
-      
-      const sqlQuery = sql;
-      
-      // append the query's first string to the last string
-      this.strings[this.strings.length - 1] += sqlQuery.strings[0];
-      
-      // add the rest of the query's strings and values
-      for (let j = 0; j < sqlQuery.values.length; ++j) {
-        this.values.push(sqlQuery.values[j]);
-        this.strings.push(sqlQuery.strings[j + 1]);
-      }
-      
-      return this;
+      return this.appendValue(sqlOrVal);
     }
     
     /**
-     * Appends the given value to the end of this SQL query.
+     * If a `SQLQuery` is given, it is appended to the end of this `SQLQuery`. If a string is given,
+     * it is appended to the end of this `SQLQuery`'s text (without variable substitution).
      * 
      * Example:
      * ```javascript
-     * const sql = SQL`SELECT name FROM person WHERE id = `;
-     * sql.appendValue(id);
-     *
+     * const sql = SQL`SELECT `;
+     * sql.appendQuery(SQL`name FROM person WHERE id = ${id}`).appendQuery(' AND name IS NOT NULL');
+     * 
      * // Equivalent to:
-     * SQL`SELECT name FROM person WHERE id = ${id}`
+     * SQL`SELECT name FROM person WHERE id = ${id} AND name IS NOT NULL`
      * ```
      */
-    appendValue(val: any) {
-      this.values.push(val);
-      this.strings.push('');
-      
-      return this;
+    appendQuery(sqlOrText: SQLQuery | string): this {
+      if (sqlOrText instanceof SQLQuery) {
+        return this.appendSQL(sqlOrText);
+      }
+      return this.appendText(sqlOrText);
     }
     
     /**
-     * Splits this SQL query into multiple SQL queries.
+     * Splits this `SQLQuery` into multiple `SQLQuery`s.
      * 
      * Example:
      * ```javascript
@@ -215,13 +189,13 @@ export namespace SQL {
      * ]
      * ```
      */
-    split(seperator: string | RegExp) {
+    split(separator: string | RegExp): SQLQuery[] {
       let regex;
-      if (seperator instanceof RegExp) {
-        regex = seperator;
+      if (separator instanceof RegExp) {
+        regex = separator;
       }
       else {
-        regex = new RegExp(escapeRegExp(seperator), 'g');
+        regex = new RegExp(escapeRegExp(separator), 'g');
       }
       
       let curSQLQuery = new SQLQuery();
@@ -237,7 +211,7 @@ export namespace SQL {
           const substr = str.substring(startIndex, match.index);
           
           // add the substring to the current query
-          curSQLQuery.append(substr);
+          curSQLQuery.appendText(substr);
           
           // start a new query
           curSQLQuery = new SQLQuery();
@@ -247,7 +221,7 @@ export namespace SQL {
         }
         
         // add the remainder of the string to the current query
-        curSQLQuery.append(str.substring(startIndex));
+        curSQLQuery.appendText(str.substring(startIndex));
         
         // add the following value to the current query (if there is one)
         if (i < this.strings.length - 1) {
@@ -259,10 +233,8 @@ export namespace SQL {
     }
     
     /**
-     * Returns if this SQL query is completly empty including whitespace
-     * and contains no variables.
-     * 
-     * See `isWhitespaceOnly()`
+     * Returns if this `SQLQuery` is completely empty including whitespace and contains no variable
+     * substitutions.
      * 
      * Example:
      * ```javascript
@@ -272,7 +244,7 @@ export namespace SQL {
      * SQL`${''}` .isEmpty(); // false
      * ```
      */
-    isEmpty() {
+    isEmpty(): boolean {
       // the query is empty if it contains exactly 1 empty string and 0 values
       if (this.strings.length > 1 || this.values.length > 0) {
         return false;
@@ -281,17 +253,17 @@ export namespace SQL {
     }
     
     /**
-     * Returns if this SQL query contains only whitespace and no variables.
+     * Returns if this `SQLQuery` contains only whitespace and no variable substitutions.
      * 
      * Example:
      * ```javascript
-     * SQL``      .isEmpty(); // true
-     * SQL`    `  .isEmpty(); // true
-     * SQL`SELECT`.isEmpty(); // false
-     * SQL`${''}` .isEmpty(); // false
+     * SQL``      .isWhitespaceOnly(); // true
+     * SQL`    `  .isWhitespaceOnly(); // true
+     * SQL`SELECT`.isWhitespaceOnly(); // false
+     * SQL`${''}` .isWhitespaceOnly(); // false
      * ```
      */
-    isWhitespaceOnly() {
+    isWhitespaceOnly(): boolean {
       if (this.strings.length > 1 || this.values.length > 0) {
         return false;
       }
@@ -299,8 +271,25 @@ export namespace SQL {
     }
     
     /**
-     * Returns the text portion of the SQL query with variable
-     * substitutions.
+     * Returns a copy of this `SQLQuery`. Note that this is a "shallow" clone in that the values
+     * referenced by this query are not themselves cloned.
+     * 
+     * Example:
+     * ```javascript
+     * const a = SQL`SELECT name FROM person WHERE id = ${id}`;
+     * const b = a.clone();
+     * b.append(SQL` AND birthday IS NOT NULL`);
+     * 
+     * // Equivalent to:
+     * const b = SQL`${a} AND birthday IS NOT NULL`;
+     * ```
+     */
+    clone(): SQLQuery {
+      return new SQLQuery(this.strings.slice(0), this.values.slice(0));
+    }
+    
+    /**
+     * Returns the text portion of this `SQLQuery` with variable substitutions.
      * 
      * Example:
      * ```javascript
@@ -311,14 +300,13 @@ export namespace SQL {
      * 'SELECT name FROM person WHERE first_name = $1 AND last_name = $2 AND birthday IS NOT NULL'
      * ```
      */
-    get text() {
+    get text(): string {
       return this.strings.reduce((previousStr, currentStr, index) => previousStr + '$' + index.toString() + currentStr);
     }
   }
   
   /**
-   * An alternate way of building a query. Start with a string then alternate
-   * strings and values.
+   * An alternate way of building a query. Start with a string then alternate values and strings.
    * 
    * Example:
    * ```javascript
@@ -334,7 +322,7 @@ export namespace SQL {
    * }
    * ```
    */
-  export function build(...strsAndVals: any[]) {
+  export function build(...strsAndVals: any[]): SQLQuery {
     const strings = [];
     const values = [];
     
@@ -349,69 +337,75 @@ export namespace SQL {
   }
   
   /**
-   * Joins multiple SQL queries and/or strings into a single SQL query with an optional
-   * seperator. Similar to `Array.pototype.join`.
+   * Joins multiple SQL queries and/or values into a single `SQLQuery`. If a `SQLQuery` is given it
+   * is appened to the end of the `SQLQuery`. Otherwise, the value is appended to the end of the SQL
+   * query (using variable substitution).
+   * 
+   * Separator can be a text string or a `SQLQuery` and defaults to `,`.
+   * 
+   * Similar to `Array.pototype.join`.
    * 
    * Example:
    * ```javascript
    * SQL.join([
    *   SQL`first_name = ${firstName}`,
    *   SQL`last_name = ${lastName}`,
-   *   'birthday IS NULL'
-   * ], ' AND ')
+   *   hasBirthday
+   * ], ' AND ');
    * 
    * // Equivalent to:
-   * SQL`first_name = ${firstName} AND last_name = ${lastName} AND birthday IS NULL`
+   * SQL`first_name = ${firstName} AND last_name = ${lastName} AND ${hasBirthday}`
    * ```
    */
-  export function join(sqls: (SQLQuery|string)[], seperator: SQLQuery|string = ',') {
+  export function join(sqlOrVals: any[], separator: SQLQuery | string = ','): SQLQuery {
     const sqlQuery = new SQLQuery();
-    for (let i = 0; i < sqls.length; ++i) {
+    for (let i = 0; i < sqlOrVals.length; ++i) {
       if (i > 0) {
-        sqlQuery.append(seperator);
+        sqlQuery.appendQuery(separator);
       }
       
-      sqlQuery.append(sqls[i]);
+      sqlQuery.append(sqlOrVals[i]);
     }
     
     return sqlQuery;
   }
   
   /**
-   * Joins values into a single SQL query with an optional seperator. Similar to
-   * `Array.pototype.join`
+   * Joins multiple SQL queries and/or text strings into a single `SQLQuery`. If a `SQLQuery` is
+   * given it is appended to the end of the `SQLQuery`. If a string is given, it is appended to the
+   * end of the `SQLQuery`'s text (without variable substitution).
+   * 
+   * Separator can be a text string or a `SQLQuery` and defaults to `,`.
+   * 
+   * Similar to `Array.pototype.join`.
    * 
    * Example:
    * ```javascript
-   * SQL`
-   *   INSERT INTO table VALUES
-   *     (${SQL.joinValues([a, b c], '), (')})
-   *   WHERE id IN (${SQL.joinValues([31, 45, 22])})
-   * `
+   * SQL.joinQueries([
+   *   SQL`first_name = ${firstName}`,
+   *   SQL`last_name = ${lastName}`,
+   *   'birthday IS NOT NULL'
+   * ], ' AND ');
    * 
    * // Equivalent to:
-   * SQL`
-   *   INSERT INTO table VALUES
-   *     (${a}), (${b}), (${c})
-   *   WHERE id IN (${31}, ${45}, ${22})
-   * `
+   * SQL`first_name = ${firstName} AND last_name = ${lastName} AND birthday IS NOT NULL`
    * ```
    */
-  export function joinValues(vals: any[], seperator: SQLQuery|string = ',') {
+  export function joinQueries(sqlOrTexts: (SQLQuery | string)[], separator: SQLQuery | string = ','): SQLQuery {
     const sqlQuery = new SQLQuery();
-    for (let i = 0; i < vals.length; ++i) {
+    for (let i = 0; i < sqlOrTexts.length; ++i) {
       if (i > 0) {
-        sqlQuery.append(seperator);
+        sqlQuery.appendQuery(separator);
       }
       
-      sqlQuery.appendValue(vals[i]);
+      sqlQuery.appendQuery(sqlOrTexts[i]);
     }
     
     return sqlQuery;
   }
   
   /**
-   * Returns if the given value is a SQL query object.
+   * Returns if the given value is an instance of `SQLQuery`.
    * 
    * Example:
    * ```javascript
@@ -422,31 +416,6 @@ export namespace SQL {
   export function isSQL(val: any): val is SQLQuery {
     return val instanceof SQLQuery;
   }
-  
-  /**
-   * Returns SQL query for a quoted indentifier. Multiple indentifiers will be delimited. Handles
-   * escaping of double quotes.
-   * 
-   * Example:
-   * ```javascript
-   * const tableName = 'Person';
-   * const columnName = 'Birthday';
-   * SQL`SELECT ${SQL.identifier(tableName, columnName) FROM ${SQL.identifier(tableName)}`
-   * 
-   * // Equivalent to:
-   * {
-   *   text: `SELECT "Person"."Birthday" FROM "Person"`,
-   *   values: []
-   * }
-   * ```
-   */
-  export function identifier(...identifiers: string[]) {
-    return SQL(
-      identifiers
-      .map(part => `"${part.replace(/"/g, '""')}"`)
-      .join('.')
-    );
-  }
 }
 
 // https://stackoverflow.com/a/6969486
@@ -455,5 +424,4 @@ function escapeRegExp(string: string) {
 }
 
 
-export default SQL;
 export const sql = SQL;
