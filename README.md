@@ -136,6 +136,11 @@ handled. Beware several breaking changes:
   - Use `sqlQuery.joinQueries` for the old behaviour.
 - `sqlQuery.joinValues` is removed.
   - Use `sqlQuery.join` instead.
+- `SQL.identifier()` is removed.
+  - Safely escaping values is out of scope for this library.
+  - Use a PostgreSQL escaping library such as `pg-format` instead.
+- Default export is removed.
+  - You must now used a named import: `import {SQL} from '@yo1dog/sql'`.
 
 
 ## Template Tag
