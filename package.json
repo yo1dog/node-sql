@@ -1,6 +1,6 @@
 {
   "name": "@yo1dog/sql",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Easy SQL query building.",
   "type": "commonjs",
   "main": "dist/sql.js",
